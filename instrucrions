@@ -1,0 +1,12 @@
+install gcloud
+install nginx ingress controller
+
+kubectl create -f secrets_for_jenkins.yml
+kubectl create configmap plugins --from-file=plugins.txt
+kubectl create -f jenkins-service.yml
+kubectl create configmap jobas --from-file=first --from-file=second
+kubectl create secret tls example-com-tls --cert=tsl.crt --key=tls.key
+kubectl create -f jenkins-pv.yml
+kubectl apply -f jenkins-claim.yml
+kubectl apply -f jenkins-insgress.yml
+kubectl create -f jenkins-deployment.yml
