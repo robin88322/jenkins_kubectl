@@ -1,0 +1,76 @@
+apiVersion: extensions/v1beta1 # for versions before 1.7.0 use apps/v1beta1
+kind: Deployment
+metadata:
+  name: jenkins-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jenkins
+  template:
+    metadata:
+      labels:
+        app: jenkins
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 3000
+        fsGroup: 2000
+      containers:
+      - name: jenkins
+        image: jenkins/jenkins:lts
+        env:
+          - name: ADMIN_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: mysecret
+                key:  password
+        volumeMounts:
+         - name: cloud-volume
+           mountPath: "/var/jenkins_home"
+         - name: jenkins-installed-plugins
+           mountPath: "/var/jenkins_home/plugins"
+         - name: jobas
+           mountPath: "/var/jenkins_home/jobs"
+      initContainers:
+       - name: install-plugins
+         image: jenkins
+         volumeMounts:
+         - name: config-vol
+           mountPath: "/var/jenkins_config"
+         - name: jenkins-installed-plugins
+           mountPath: "/var/jenkins_home/plugins"
+         command: ["/bin/sh", "-c"]
+         args: ["cp /var/jenkins_config/plugins.txt /var/jenkins_home; rm -rf /usr/share/jenkins/ref/plugins/*.lock; /usr/local/bin/install-plugins.sh `echo $(cat /var/jenkins_home/plugins.txt)`; yes n | cp -i /usr/share/jenkins/ref/plugins/* /var/jenkins_home/plugins/"]
+       - name: install-jobas
+         image: jenkins
+         volumeMounts:
+         - name: config-jobas
+           mountPath: "/var/jenkins_jobs"
+         - name: jobas
+           mountPath: "/var/jenkins_home/jobs"
+         command:
+         - /bin/bash
+         - "-c"
+         - | 
+           for job in $(ls /var/jenkins_jobs);
+            do
+            mkdir -p /var/jenkins_home/jobs/$job
+            yes | cp -i /var/jenkins_jobs/$job /var/jenkins_home/jobs/$job/config.xml;
+            done;  
+#         command: ["/bin/sh", "-c"]
+#         args: ["for job in $(ls /var/jenkins_jobs); do mkdir -p /var/jenkins_home/jobs/$job yes | cp -i /var/jenkins_jobs/$job /var/jenkins_home/jobs/$job/config.xml; done;"]
+      volumes:
+        - name: config-vol
+          configMap:
+            name: plugins
+        - name: jenkins-installed-plugins
+          emptyDir: {}
+        - name: config-jobas
+          configMap:
+            name: jobas
+        - name: jobas
+          emptyDir: {}
+        - name: cloud-volume
+          persistentVolumeClaim:
+              claimName: jenkins-claim

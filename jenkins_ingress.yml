@@ -1,0 +1,14 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: jenkins-ingress
+spec:
+  tls:
+    - secretName: example-com-tls
+  rules:
+  - host: jenkinsexample.com
+    http:
+      paths:
+      - backend:
+          serviceName: jenkins
+          servicePort: my-first-port
